@@ -6,7 +6,6 @@ import sys
 import traceback
 import datetime
 from collections import defaultdict
-import pandas as pd
 
 from flask import Flask
 from flask import render_template
@@ -45,7 +44,10 @@ app.register_blueprint(filters.blueprint)
 
 @app.route("/")
 def home():
-    deputes = pd.read_csv('data/deputes.csv').to_dict('record')
+    deputes = []
+    with open('data/deputes.jsons') as db:
+        for d in db:
+            deputes.append(json.loads(d))
     text = json.load(open('data/text.json'))
     return render_template('home.html', deputes=deputes, text=text)
 
