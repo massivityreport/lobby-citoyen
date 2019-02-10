@@ -29,6 +29,21 @@ from model import Role
 import filters
 from forms import *
 
+class FixScriptName(object):
+    def __init__(self, app, prefix):
+        self.app = app
+        self.prefix = prefix
+
+    def __call__(self, environ, start_response):
+        print(environ['PATH_INFO'])
+        if environ['PATH_INFO'].startswith(self.prefix):
+            environ['PATH_INFO'] = environ['PATH_INFO'][len(self.prefix):]
+            environ['SCRIPT_NAME'] = self.prefix
+            return self.app(environ, start_response)
+        else:
+            start_response('404', [('Content-Type', 'text/plain')])
+            return ["This doesn't get served by your FixScriptName middleware.".encode()]
+
 # Create app
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'super-secret'
@@ -51,13 +66,19 @@ def home():
     text = json.load(open('data/text.json'))
     return render_template('home.html', deputes=deputes, text=text)
 
+def build_app(configuration_file):
+    app.config['UI'] = json.load(open(configuration_file))
+    app.config['SQLALCHEMY_DATABASE_URI'] = app.config['UI']['database']
+    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    app.wsgi_app = FixScriptName(app.wsgi_app, '/laffairedusiecle')
+    db.init_app(app)
+    return app
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Run the web app')
     parser.add_argument('configuration_file', help='The JSON configuration file')
     args = parser.parse_args()
 
     # Go !
-    app.config['UI'] = json.load(open(args.configuration_file))
-    app.config['SQLALCHEMY_DATABASE_URI'] = app.config['UI']['database']
-    db.init_app(app)
+    app = build_app(args.configuration_file)
     app.run(host=app.config['UI']['host'], port=app.config['UI']['port'], debug=True)
