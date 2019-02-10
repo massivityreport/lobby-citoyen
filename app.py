@@ -22,6 +22,9 @@ from flask_security import UserMixin
 from flask_security import RoleMixin
 from flask_security import login_required
 
+from flask_mail import Mail
+from flask_mail import Message
+
 from model import db
 from model import User
 from model import Role
@@ -57,6 +60,9 @@ security = Security(app, user_datastore)
 # template filters
 app.register_blueprint(filters.blueprint)
 
+# mail
+mail = Mail()
+
 @app.route("/")
 def home():
     deputes = []
@@ -66,12 +72,26 @@ def home():
     text = json.load(open('data/text.json'))
     return render_template('home.html', deputes=deputes, text=text)
 
+@app.route("/send-mail", methods=['POST'])
+def send_mail():
+    data = request.form
+    text = json.load(open('data/text.json'))
+    body = 'This is a test mail for %s <%s>' %(
+        data['DEST_NAME'], data['DEST_EMAIL']
+    )
+    message = Message(body, sender=(data['NAME'], data['EMAIL']), recipients=['david@massivityreport.com'])
+    mail.send(message)
+    print('sent')
+    return 'OK'
+
+
 def build_app(configuration_file):
     app.config['UI'] = json.load(open(configuration_file))
     app.config['SQLALCHEMY_DATABASE_URI'] = app.config['UI']['database']
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     app.wsgi_app = FixScriptName(app.wsgi_app, '/laffairedusiecle')
     db.init_app(app)
+    mail.init_app(app)
     return app
 
 if __name__ == "__main__":
